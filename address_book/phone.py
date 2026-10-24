@@ -4,12 +4,21 @@ from .field import Field
 
 
 class Phone(Field):
-    """Contact phone number, expected to consist of exactly 10 digits.
+    """Contact phone number consisting of exactly 10 digits.
 
-    The constructor does not validate the value, call `is_valid` to check it.
+    Raises:
+        TypeError: If the number is not a string.
+        ValueError: If the number is not exactly 10 ASCII digits.
     """
 
     COUNTRY_CODE = "+38"
+
+    def __init__(self, value: str):
+        if not isinstance(value, str):
+            raise TypeError(f"Phone number must be a string, got {type(value).__name__}")
+        if re.fullmatch(r"[0-9]{10}", value) is None:
+            raise ValueError("Phone number must contain exactly 10 digits")
+        super().__init__(value)
 
     @property
     def is_required(self) -> bool:
@@ -53,8 +62,3 @@ class Phone(Field):
     def key(self) -> str:
         """Key identifying this phone within a record."""
         return Phone.to_key(self.value)
-
-    @property
-    def is_valid(self) -> bool:
-        """Return True if the value is a string of exactly 10 ASCII digits."""
-        return isinstance(self.value, str) and re.fullmatch(r"[0-9]{10}", self.value) is not None

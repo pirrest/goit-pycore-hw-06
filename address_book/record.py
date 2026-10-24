@@ -28,14 +28,17 @@ class Record:
     def add_phone(self, phone_number: str) -> bool:
         """Add a phone to the record.
 
-        Validity of the number is not checked yet.
-
         Returns:
             True if added, False if the record already has this phone.
+
+        Raises:
+            TypeError: If the number is not a string.
+            ValueError: If the number is not exactly 10 digits.
         """
-        if self._index_of_phone(phone_number) is not None:
+        phone = Phone(phone_number)
+        if self._index_of_phone(phone.value) is not None:
             return False
-        self.phones.append(Phone(phone_number))
+        self.phones.append(phone)
         return True
 
     def remove_phone(self, phone_number: str) -> bool:
@@ -53,20 +56,22 @@ class Record:
     def edit_phone(self, old_phone_number: str, new_phone_number: str) -> bool:
         """Replace a phone in place, keeping its position in the list.
 
-        Validity of the new number is not checked yet.
-
         Returns:
             True if replaced, False if the old phone was not found or the new
             number is already present in the record as another phone.
+
+        Raises:
+            TypeError: If the new number is not a string.
+            ValueError: If the new number is not exactly 10 digits.
         """
+        new_phone = Phone(new_phone_number)
         index = self._index_of_phone(old_phone_number)
         if index is None:
             return False
-        new_key = Phone.to_key(new_phone_number)
         for other_index, phone in enumerate(self.phones):
-            if other_index != index and phone.key == new_key:
+            if other_index != index and phone.key == new_phone.key:
                 return False
-        self.phones[index] = Phone(new_phone_number)
+        self.phones[index] = new_phone
         return True
 
     def find_phone(self, phone_number: str) -> Phone | None:

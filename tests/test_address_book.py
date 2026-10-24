@@ -5,23 +5,38 @@ from address_book import AddressBook, Field, Name, Phone, Record
 
 class FieldValidationTests(unittest.TestCase):
     def test_phone_valid(self):
-        self.assertTrue(Phone("1234567890").is_valid)
+        self.assertEqual(Phone("1234567890").value, "1234567890")
 
-    def test_phone_invalid(self):
-        for value in ("123456789", "12345678901", "12345abcde", "", "123-456-7890", "١٢٣٤٥٦٧٨٩٠", None):
+    def test_phone_invalid_raises_value_error(self):
+        for value in ("123456789", "12345678901", "12345abcde", "", "123-456-7890", "١٢٣٤٥٦٧٨٩٠"):
             with self.subTest(value=value):
-                self.assertFalse(Phone(value).is_valid)
+                with self.assertRaises(ValueError):
+                    Phone(value)
 
-    def test_phone_constructor_does_not_raise(self):
-        self.assertEqual(Phone("123").value, "123")
+    def test_phone_not_a_string_raises_type_error(self):
+        for value in (1234567890, None):
+            with self.subTest(value=value):
+                with self.assertRaises(TypeError):
+                    Phone(value)
 
-    def test_name_valid(self):
-        self.assertTrue(Name("John").is_valid)
+    def test_name_valid_keeps_original_value(self):
+        self.assertEqual(Name(" John ").value, " John ")
 
-    def test_name_empty_after_strip_is_invalid(self):
+    def test_name_empty_after_strip_raises_value_error(self):
         for value in ("", "   ", "\t\n"):
             with self.subTest(value=value):
-                self.assertFalse(Name(value).is_valid)
+                with self.assertRaises(ValueError):
+                    Name(value)
+
+    def test_name_not_a_string_raises_type_error(self):
+        for value in (None, 123):
+            with self.subTest(value=value):
+                with self.assertRaises(TypeError):
+                    Name(value)
+
+    def test_record_with_empty_name_raises_value_error(self):
+        with self.assertRaises(ValueError):
+            Record("  ")
 
 
 class RequiredTests(unittest.TestCase):
@@ -49,7 +64,7 @@ class KeyTests(unittest.TestCase):
         self.assertEqual(Phone.to_key("abc"), "abc")
 
     def test_phone_key(self):
-        self.assertEqual(Phone("050 123 45 67").key, Phone("0501234567").key)
+        self.assertEqual(Phone("0501234567").key, "+380501234567")
 
     def test_record_key(self):
         self.assertEqual(Record("  JANE").key, "jane")
@@ -88,12 +103,26 @@ class RecordTests(unittest.TestCase):
         self.assertFalse(self.record.add_phone("1234567890"))
         self.assertEqual(len(self.record.phones), 2)
 
-    def test_add_duplicate_in_other_format_returns_false(self):
-        self.assertFalse(self.record.add_phone("(123) 456-7890"))
+    def test_add_duplicate_in_other_format_raises_value_error(self):
+        with self.assertRaises(ValueError):
+            self.record.add_phone("(123) 456-7890")
         self.assertEqual(len(self.record.phones), 2)
 
-    def test_add_invalid_phone_is_not_rejected(self):
-        self.assertTrue(self.record.add_phone("123"))
+    def test_add_invalid_phone_raises_and_keeps_record(self):
+        for value in ("123", "abc"):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    self.record.add_phone(value)
+        with self.assertRaises(TypeError):
+            self.record.add_phone(1234567890)
+        self.assertEqual(len(self.record.phones), 2)
+
+    def test_edit_to_invalid_phone_raises_and_keeps_record(self):
+        with self.assertRaises(ValueError):
+            self.record.edit_phone("1234567890", "123")
+        with self.assertRaises(ValueError):
+            self.record.edit_phone("0000000000", "123")
+        self.assertEqual([p.value for p in self.record.phones], ["1234567890", "5555555555"])
 
     def test_remove_phone(self):
         self.assertTrue(self.record.remove_phone("1234567890"))
@@ -129,13 +158,11 @@ class RecordTests(unittest.TestCase):
     def test_find_missing_phone_returns_none(self):
         self.assertIsNone(self.record.find_phone("0000000000"))
 
-    def test_non_normalizable_values_compared_raw(self):
-        record = Record("Raw")
-        self.assertTrue(record.add_phone("abc"))
-        self.assertFalse(record.add_phone("abc"))
-        self.assertTrue(record.add_phone("xyz"))
-        self.assertIsNone(record.find_phone("nope"))
-        self.assertTrue(record.remove_phone("abc"))
+    def test_lookup_with_non_normalizable_value_finds_nothing(self):
+        self.assertIsNone(self.record.find_phone("abc"))
+        self.assertFalse(self.record.remove_phone("abc"))
+        self.assertFalse(self.record.edit_phone("abc", "1112223333"))
+        self.assertEqual(len(self.record.phones), 2)
 
     def test_str(self):
         self.assertEqual(str(self.record), "Contact name: John, phones: 1234567890; 5555555555")
